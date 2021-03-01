@@ -1,8 +1,8 @@
 const express = require("express");
-const routes = express.Router();
+const cartItems = express.Router();
 const pool = require("./connections");
 
-routes.get("/cart-items", function(req, res) {
+cartItems.get("/cart-items", function(req, res) {
     let maxPrice = parseFloat(req.query.maxPrice);
     let prefix = req.query.prefix;
     let pageSize = req.query.pageSize;
@@ -19,9 +19,9 @@ routes.get("/cart-items", function(req, res) {
         });
 // responds with JSON array of indicated page size
     } if (pageSize) {
-        pool.query('SELECT * FROM shopping_cart WHERE count<=$1', [pageSize].then(results => {
+        pool.query('SELECT * FROM shopping_cart WHERE count<=$1', [pageSize]).then(results => {
             res.json(results.rows);
-        }))
+        });
 // responds with JSON array of all cart items & status code 200
     } else {
     pool.query("SELECT * FROM shopping_cart order by id").then(result =>
@@ -31,44 +31,48 @@ routes.get("/cart-items", function(req, res) {
         });
 }});
 
-routes.get("/cart-items/:id", function(req, res) {
-    let item = parseInt(req.params.id);
+cartItems.get("/cart-items/:id", function(req, res) {
+    const id = parseInt(req.params.id);
+    const items = results.rows;
 // responds with JSON object of the item with the given ID
-    if (item) {
-        pool.query('SELECT * FROM shopping_cart WHERE id<=$1', [item.id].then(results => {
-        res.json(results.rows);
+if (items) {
+        pool.query('SELECT * FROM shopping_cart WHERE id<=$1', [id].then(results => {
+        res.json(items);
 // responds with status code 200
         res.status(200);
     })) 
 // responds with status code 404 when not found
 } else {
-    res.status(404);
+    res.status(404).send('item not found');
 }});
 
-routes.post("/cart-items", function(req, res) {
-
+cartItems.post("/cart-items", function(req, res) {
+    let add = req.body;
+    // Add a cart item to the database using the JSON body of the request. Database generates a unique ID for that item.
+    pool.query('INSERT INTO shopping_cart (product, price, quantity) VALUES ($1, $2, $3)'), [add.product, add.price, add.quantity].then( () => {
+        res.json(add);
+    //  responds with the added cart item object as JSON and status code 201.
+        res.status(201);
+    });
 });
 
-routes.put("cart-items/:id", function(req, res) {
-    let item = parseInt(req.params.id);
-    //Removes the itme from the database that has the given ID
-        if (item) {
-            pool.query('UPDATE shopping_cart SET product WHERE id<=$1', [item].then(results => {
-    //Responds with the added cart item as JSON and status code 201
-                res.json(results.item);
-                res.status(201);
-}));
+cartItems.put("cart-items/:id", function(req, res) {
+    let id = req.params.id;
+    const update = req.body;
+    // updates the cart item in the database that has the given id
+    pool.query('UPDATE shopping_cart SET product id<=$1, price<=$2, quantity<=$3 WHERE id<=$4', [req.body.product, req.body.price, req.body.quantity, id]).then( () => {
+    // responds with the updated cart item as JSON and status code 200
+        res.json(update);
+        res.status(200);
+});
 
-routes.delete("cart-items/:id", function(req, res) {
-    let item = parseInt(req.params.id);
-//Removes the itme from the database that has the given ID
-    if (item) {
-        pool.query('DELETE * FROM shopping_cart WHERE id<=$1', [item].then(results => {
-            res.json(results.rows);
-        }))
+cartItems.delete("cart-items/:id", function(req, res) {
+    let id = req.params.id;
+// removes the itme from the database that has the given ID
+        pool.query('DELETE * FROM shopping_cart WHERE id<=$1', [id]).then( () => {
+        res.json();
 // responds with no content and status code 204
-    } else {
         res.status(204);
-}});
+});
 
-module.exports = routes;
+module.exports = cartItems;
